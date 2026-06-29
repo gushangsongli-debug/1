@@ -320,8 +320,8 @@
     <div class="header">
         <h1 id="header-title">文生图</h1>
         <div class="header-actions">
-            <i class="fa-solid fa-file-export settings-btn" onclick="exportData()" title="导出备份"></i>
-            <i class="fa-solid fa-file-import settings-btn" onclick="document.getElementById('import-file').click()" title="导入备份"></i>
+            <i class="fa-solid fa-file-export settings-btn" onclick="exportData()" title="导出所有数据"></i>
+            <i class="fa-solid fa-file-import settings-btn" onclick="document.getElementById('import-file').click()" title="导入数据"></i>
             <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(event)">
             <i class="fa-solid fa-sliders settings-btn" onclick="toggleSettings(true)" title="设置"></i>
         </div>
@@ -737,21 +737,20 @@
         }
     };
 
-    // --- 导入/导出备份逻辑 ---
+    // --- 导入/导出备份逻辑 (全量数据) ---
     async function exportData() {
+        // 遍历并获取 localStorage 中的所有键值对
+        const localStorageData = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            localStorageData[key] = localStorage.getItem(key);
+        }
+
         const data = {
-            localStorage: {
-                ai_api_url: localStorage.getItem('ai_api_url'),
-                ai_api_key: localStorage.getItem('ai_api_key'),
-                ai_api_jailbreak: localStorage.getItem('ai_api_jailbreak'),
-                ai_api_model: localStorage.getItem('ai_api_model'),
-                ai_tag_url: localStorage.getItem('ai_tag_url'),
-                ai_tag_key: localStorage.getItem('ai_tag_key'),
-                ai_tag_model: localStorage.getItem('ai_tag_model'),
-                ai_api_presets: localStorage.getItem('ai_api_presets')
-            },
+            localStorage: localStorageData,
             history: historyData
         };
+        
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -768,17 +767,21 @@
         reader.onload = async (e) => {
             try {
                 const data = JSON.parse(e.target.result);
+                
+                // 恢复所有的 localStorage 数据
                 if (data.localStorage) {
                     for (const key in data.localStorage) {
-                        if (data.localStorage[key] !== null) {
+                        if (data.localStorage.hasOwnProperty(key) && data.localStorage[key] !== null) {
                             localStorage.setItem(key, data.localStorage[key]);
                         }
                     }
                 }
+                
+                // 恢复所有的历史记录数据
                 if (data.history && Array.isArray(data.history)) {
                     const transaction = db.transaction([STORE_NAME], 'readwrite');
                     const store = transaction.objectStore(STORE_NAME);
-                    store.clear();
+                    store.clear(); // 先清空现有历史记录
                     
                     for (const item of data.history) {
                         await new Promise((resolve, reject) => {
@@ -788,7 +791,7 @@
                         });
                     }
                 }
-                alert('导入成功！页面将刷新以应用数据。');
+                alert('导入成功！页面将刷新以应用所有数据。');
                 location.reload();
             } catch (err) {
                 alert('导入失败：文件格式不正确。');
