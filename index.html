@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI 灵感创作</title>
-        <!-- 引入 PWA 配置文件 -->
     <link rel="manifest" href="manifest.json">
-    <!-- 设置安卓状态栏颜色 -->
     <meta name="theme-color" content="#f4f7fa">
-    <!-- 苹果 iOS 专属图标和全屏设置 -->
     <link rel="apple-touch-icon" href="icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -54,6 +51,7 @@
             z-index: 10; display: flex; justify-content: space-between; align-items: center;
         }
         .header h1 { font-size: 22px; font-weight: 600; letter-spacing: 1px; }
+        .header-actions { display: flex; gap: 18px; align-items: center; }
         .header .settings-btn { font-size: 20px; color: var(--text-muted); cursor: pointer; transition: color 0.3s; }
         .header .settings-btn:hover { color: var(--primary-color); }
 
@@ -144,7 +142,10 @@
         }
         .btn-primary:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
         .btn-primary:active { transform: translateY(0); }
-        .btn-primary:disabled { background-color: var(--text-muted); cursor: not-allowed; transform: none; box-shadow: none; }
+        
+        /* 取消按钮样式 */
+        .btn-cancel { background-color: var(--danger-color) !important; box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3) !important; }
+        .btn-cancel:hover { background-color: #c0392b !important; }
 
         .loader { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid white; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -167,14 +168,10 @@
         .nav-item.active { color: var(--primary-color); font-weight: 600; }
         .nav-item.active i { transform: scale(1.1); }
 
-        /* 标签 (Tags) 侧边栏布局 */
-        #view-tags {
-            padding: 0; 
-            height: 100%; 
-        }
-        #view-tags.active {
-            display: flex; flex-direction: column;
-        }
+        /* 侧边栏布局 (标签 & 相册共用) */
+        #view-tags, #view-gallery { padding: 0; height: 100%; }
+        #view-tags.active, #view-gallery.active { display: flex; flex-direction: column; }
+        
         .tags-layout {
             flex: 1; display: flex; overflow: hidden; 
             border-top: 1px solid var(--border-color);
@@ -322,7 +319,12 @@
     <!-- 顶部标题 -->
     <div class="header">
         <h1 id="header-title">文生图</h1>
-        <i class="fa-solid fa-sliders settings-btn" onclick="toggleSettings(true)" title="设置"></i>
+        <div class="header-actions">
+            <i class="fa-solid fa-file-export settings-btn" onclick="exportData()" title="导出备份"></i>
+            <i class="fa-solid fa-file-import settings-btn" onclick="document.getElementById('import-file').click()" title="导入备份"></i>
+            <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(event)">
+            <i class="fa-solid fa-sliders settings-btn" onclick="toggleSettings(true)" title="设置"></i>
+        </div>
     </div>
 
     <!-- 内容区 -->
@@ -365,50 +367,7 @@
             </button>
         </div>
 
-        <!-- 视图 2：图生图 -->
-        <div id="view-i2i" class="view-section">
-            <div class="image-display" onclick="openViewer('i2i')">
-                <img id="result-img-i2i" src="" alt="生成结果">
-                <div class="placeholder" id="placeholder-i2i">
-                    <i class="fa-regular fa-images"></i>
-                    <p>等待灵感降临...</p>
-                </div>
-                <div class="fullscreen-hint" id="hint-i2i"><i class="fa-solid fa-expand"></i> 全屏</div>
-            </div>
-
-            <div class="ratio-container">
-                <span class="ratio-label">图片比例</span>
-                <div class="ratio-list" id="ratio-list-i2i">
-                    <span class="ratio-btn active" onclick="selectRatio('i2i', '1:1')">1:1</span>
-                    <span class="ratio-btn" onclick="selectRatio('i2i', '4:3')">4:3</span>
-                    <span class="ratio-btn" onclick="selectRatio('i2i', '3:4')">3:4</span>
-                    <span class="ratio-btn" onclick="selectRatio('i2i', '16:9')">16:9</span>
-                    <span class="ratio-btn" onclick="selectRatio('i2i', '9:16')">9:16</span>
-                    <span class="ratio-btn" onclick="selectRatio('i2i', 'custom')">自定义</span>
-                </div>
-                <div class="custom-ratio" id="custom-ratio-i2i">
-                    <input type="number" id="custom-w-i2i" placeholder="宽" value="1024" min="1"> x 
-                    <input type="number" id="custom-h-i2i" placeholder="高" value="1024" min="1">
-                </div>
-            </div>
-
-            <div class="input-group">
-                <div class="upload-area" onclick="document.getElementById('file-input-i2i').click()">
-                    <i class="fa-solid fa-cloud-arrow-up"></i>
-                    <p>点击上传参考图</p>
-                    <img id="preview-upload-i2i" src="" alt="上传预览">
-                </div>
-                <input type="file" id="file-input-i2i" class="file-input" accept="image/*" onchange="previewImage(event, 'i2i')">
-                <textarea id="prompt-i2i" placeholder="描述修改意图，例如：将背景换成赛博朋克风格..."></textarea>
-                <textarea id="negative-prompt-i2i" class="negative-input" placeholder="负面提示词（不希望出现的元素，例如：模糊，多余的手指，低质量...）"></textarea>
-            </div>
-            <button class="btn-primary" id="btn-i2i" onclick="generateImage('i2i')">
-                <div class="loader" id="loader-i2i"></div>
-                <span id="btn-text-i2i"><i class="fa-solid fa-wand-magic-sparkles"></i> 开始生成</span>
-            </button>
-        </div>
-
-        <!-- 视图 3：标签 (侧边栏风格) -->
+        <!-- 视图 2：标签 (侧边栏风格，包含反推、图生图、风格标签) -->
         <div id="view-tags" class="view-section">
             <div class="tags-layout">
                 <!-- 左侧边栏 -->
@@ -439,7 +398,50 @@
                         </button>
                     </div>
 
-                    <!-- 2. 风格生图容器 -->
+                    <!-- 2. 图生图容器 -->
+                    <div id="tag-i2i-container" style="display: none;">
+                        <div class="image-display" onclick="openViewer('i2i')">
+                            <img id="result-img-i2i" src="" alt="生成结果">
+                            <div class="placeholder" id="placeholder-i2i">
+                                <i class="fa-regular fa-images"></i>
+                                <p>等待灵感降临...</p>
+                            </div>
+                            <div class="fullscreen-hint" id="hint-i2i"><i class="fa-solid fa-expand"></i> 全屏</div>
+                        </div>
+
+                        <div class="ratio-container">
+                            <span class="ratio-label">图片比例</span>
+                            <div class="ratio-list" id="ratio-list-i2i">
+                                <span class="ratio-btn active" onclick="selectRatio('i2i', '1:1')">1:1</span>
+                                <span class="ratio-btn" onclick="selectRatio('i2i', '4:3')">4:3</span>
+                                <span class="ratio-btn" onclick="selectRatio('i2i', '3:4')">3:4</span>
+                                <span class="ratio-btn" onclick="selectRatio('i2i', '16:9')">16:9</span>
+                                <span class="ratio-btn" onclick="selectRatio('i2i', '9:16')">9:16</span>
+                                <span class="ratio-btn" onclick="selectRatio('i2i', 'custom')">自定义</span>
+                            </div>
+                            <div class="custom-ratio" id="custom-ratio-i2i">
+                                <input type="number" id="custom-w-i2i" placeholder="宽" value="1024" min="1"> x 
+                                <input type="number" id="custom-h-i2i" placeholder="高" value="1024" min="1">
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <div class="upload-area" onclick="document.getElementById('file-input-i2i').click()">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <p>点击上传参考图</p>
+                                <img id="preview-upload-i2i" src="" alt="上传预览">
+                            </div>
+                            <input type="file" id="file-input-i2i" class="file-input" accept="image/*" onchange="previewImage(event, 'i2i')">
+                            <textarea id="prompt-i2i" placeholder="描述修改意图，例如：将背景换成赛博朋克风格..."></textarea>
+                            <textarea id="negative-prompt-i2i" class="negative-input" placeholder="负面提示词（不希望出现的元素，例如：模糊，多余的手指，低质量...）"></textarea>
+                        </div>
+                        <button class="btn-primary" id="btn-i2i" onclick="generateImage('i2i')">
+                            <div class="loader" id="loader-i2i"></div>
+                            <span id="btn-text-i2i"><i class="fa-solid fa-wand-magic-sparkles"></i> 开始生成</span>
+                        </button>
+                    </div>
+
+                    <!-- 3. 风格生图容器 -->
                     <div id="tag-generate-container" style="display: none;">
                         <div class="image-display" onclick="openViewer('tag')">
                             <img id="result-img-tag" src="" alt="生成结果">
@@ -488,26 +490,38 @@
             </div>
         </div>
 
-        <!-- 视图 4：相册 -->
+        <!-- 视图 3：相册 -->
         <div id="view-gallery" class="view-section">
-            <div class="gallery-header">
-                <span class="gallery-count">共 <span id="history-count">0</span> 张图片</span>
-                <button class="btn-manage" id="btn-manage" onclick="toggleManageMode()">管理</button>
-            </div>
-            
-            <!-- 管理模式工具栏 -->
-            <div class="manage-toolbar" id="manage-toolbar">
-                <div class="left-btns">
-                    <button class="btn-outline" onclick="selectAllHistory()">全选</button>
-                    <button class="btn-outline" onclick="deselectAllHistory()">取消</button>
+            <div class="tags-layout">
+                <!-- 相册侧边栏分类 -->
+                <div class="sidebar" id="gallery-sidebar">
+                    <div class="sidebar-item active" onclick="switchGalleryTab('all', this)">全部</div>
+                    <div class="sidebar-item" onclick="switchGalleryTab('t2i', this)">文生图</div>
+                    <div class="sidebar-item" onclick="switchGalleryTab('tag', this)">标签</div>
                 </div>
-                <button class="btn-outline btn-danger-outline" onclick="deleteSelectedHistory()">
-                    <i class="fa-solid fa-trash-can"></i> 删除 (<span id="selected-count">0</span>)
-                </button>
-            </div>
+                
+                <!-- 相册内容区 -->
+                <div class="tags-content" style="padding-top: 0;">
+                    <div class="gallery-header" style="margin-top: 16px;">
+                        <span class="gallery-count">共 <span id="history-count">0</span> 张图片</span>
+                        <button class="btn-manage" id="btn-manage" onclick="toggleManageMode()">管理</button>
+                    </div>
+                    
+                    <!-- 管理模式工具栏 -->
+                    <div class="manage-toolbar" id="manage-toolbar">
+                        <div class="left-btns">
+                            <button class="btn-outline" onclick="selectAllHistory()">全选</button>
+                            <button class="btn-outline" onclick="deselectAllHistory()">取消</button>
+                        </div>
+                        <button class="btn-outline btn-danger-outline" onclick="deleteSelectedHistory()">
+                            <i class="fa-solid fa-trash-can"></i> 删除 (<span id="selected-count">0</span>)
+                        </button>
+                    </div>
 
-            <div class="gallery-grid" id="gallery-grid">
-                <!-- 动态渲染历史记录 -->
+                    <div class="gallery-grid" id="gallery-grid">
+                        <!-- 动态渲染历史记录 -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -517,10 +531,6 @@
         <div class="nav-item active" onclick="switchTab('t2i', this)">
             <i class="fa-solid fa-pen-nib"></i>
             <span>文生图</span>
-        </div>
-        <div class="nav-item" onclick="switchTab('i2i', this)">
-            <i class="fa-solid fa-layer-group"></i>
-            <span>图生图</span>
         </div>
         <div class="nav-item" onclick="switchTab('tags', this)">
             <i class="fa-solid fa-tags"></i>
@@ -637,11 +647,15 @@
     // 相册管理状态
     let isManageMode = false;
     let selectedHistoryIds = new Set();
+    let currentGalleryTab = 'all';
 
     // 标签状态
     let currentTag = null;
 
-    // --- 风格标签配置 (已全面中文化并优化) ---
+    // 取消请求控制器
+    let abortControllers = { t2i: null, i2i: null, tag: null, interrogate: null };
+
+    // --- 风格标签配置 ---
     const tagStyles = [
         { name: 'Q版小人', prompt: 'Q版动漫风格，二头身比例，大头小身体，极其可爱，平涂上色，2D插画，卡哇伊，杰作，干净的背景，不要3D，不要手办质感', ratio: '3:4' },
         { name: '证件照', prompt: '证件照，正面视角，正装，纯[COLOR]背景，专业影棚灯光，写实肖像，面部细节丰富，工作室摄影', ratio: '3:4' },
@@ -723,6 +737,68 @@
         }
     };
 
+    // --- 导入/导出备份逻辑 ---
+    async function exportData() {
+        const data = {
+            localStorage: {
+                ai_api_url: localStorage.getItem('ai_api_url'),
+                ai_api_key: localStorage.getItem('ai_api_key'),
+                ai_api_jailbreak: localStorage.getItem('ai_api_jailbreak'),
+                ai_api_model: localStorage.getItem('ai_api_model'),
+                ai_tag_url: localStorage.getItem('ai_tag_url'),
+                ai_tag_key: localStorage.getItem('ai_tag_key'),
+                ai_tag_model: localStorage.getItem('ai_tag_model'),
+                ai_api_presets: localStorage.getItem('ai_api_presets')
+            },
+            history: historyData
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `AI_Backup_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    async function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.localStorage) {
+                    for (const key in data.localStorage) {
+                        if (data.localStorage[key] !== null) {
+                            localStorage.setItem(key, data.localStorage[key]);
+                        }
+                    }
+                }
+                if (data.history && Array.isArray(data.history)) {
+                    const transaction = db.transaction([STORE_NAME], 'readwrite');
+                    const store = transaction.objectStore(STORE_NAME);
+                    store.clear();
+                    
+                    for (const item of data.history) {
+                        await new Promise((resolve, reject) => {
+                            const req = store.put(item);
+                            req.onsuccess = () => resolve();
+                            req.onerror = (err) => reject(err.target.error);
+                        });
+                    }
+                }
+                alert('导入成功！页面将刷新以应用数据。');
+                location.reload();
+            } catch (err) {
+                alert('导入失败：文件格式不正确。');
+                console.error(err);
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; 
+    }
+
     // --- 预设管理逻辑 ---
     function loadPresets() {
         try {
@@ -751,7 +827,6 @@
         if (id) {
             const p = presets.find(x => x.id === id);
             if (p) {
-                // 生图
                 document.getElementById('cfg-url').value = p.url || '';
                 document.getElementById('cfg-key').value = p.key || '';
                 document.getElementById('cfg-jailbreak').value = p.jailbreak || '';
@@ -764,7 +839,6 @@
                     }
                     modelSelect.value = p.model;
                 }
-                // 反推
                 document.getElementById('cfg-tag-url').value = p.tagUrl || '';
                 document.getElementById('cfg-tag-key').value = p.tagKey || '';
                 const tagModelSelect = document.getElementById('cfg-tag-model');
@@ -825,7 +899,7 @@
         document.querySelectorAll('.view-section').forEach(view => view.classList.remove('active'));
         document.getElementById('view-' + tabId).classList.add('active');
         
-        const titles = { 't2i': '文生图', 'i2i': '图生图', 'tags': '标签', 'gallery': '我的相册' };
+        const titles = { 't2i': '文生图', 'tags': '标签', 'gallery': '我的相册' };
         document.getElementById('header-title').innerText = titles[tabId];
 
         if (tabId === 'gallery') renderGallery();
@@ -840,14 +914,24 @@
         const interrogateItem = document.createElement('div');
         interrogateItem.className = 'sidebar-item active';
         interrogateItem.innerText = '反推提示词';
+        interrogateItem.setAttribute('data-id', 'interrogate');
         interrogateItem.onclick = () => switchTag('interrogate', interrogateItem);
         sidebar.appendChild(interrogateItem);
+
+        // 2. 添加图生图
+        const i2iItem = document.createElement('div');
+        i2iItem.className = 'sidebar-item';
+        i2iItem.innerText = '图生图';
+        i2iItem.setAttribute('data-id', 'i2i');
+        i2iItem.onclick = () => switchTag('i2i', i2iItem);
+        sidebar.appendChild(i2iItem);
         
-        // 2. 添加风格标签
+        // 3. 添加风格标签
         tagStyles.forEach((style, index) => {
             const item = document.createElement('div');
             item.className = 'sidebar-item';
             item.innerText = style.name;
+            item.setAttribute('data-id', `tag-${index}`);
             item.onclick = () => switchTag(index, item);
             sidebar.appendChild(item);
         });
@@ -856,22 +940,27 @@
     }
 
     function switchTag(tagId, element) {
-        document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-        element.classList.add('active');
+        document.querySelectorAll('#tags-sidebar .sidebar-item').forEach(el => el.classList.remove('active'));
+        if(element) element.classList.add('active');
         
         const interrogateContainer = document.getElementById('tag-interrogate-container');
+        const i2iContainer = document.getElementById('tag-i2i-container');
         const generateContainer = document.getElementById('tag-generate-container');
         
+        interrogateContainer.style.display = 'none';
+        i2iContainer.style.display = 'none';
+        generateContainer.style.display = 'none';
+
         if (tagId === 'interrogate') {
             currentTag = 'interrogate';
             interrogateContainer.style.display = 'block';
-            generateContainer.style.display = 'none';
+        } else if (tagId === 'i2i') {
+            currentTag = 'i2i';
+            i2iContainer.style.display = 'block';
         } else {
             currentTag = tagStyles[tagId];
-            interrogateContainer.style.display = 'none';
             generateContainer.style.display = 'block';
             
-            // 填入默认提示词和比例
             document.getElementById('prompt-tag').value = currentTag.prompt;
             selectRatio('tag', currentTag.ratio);
         }
@@ -910,11 +999,8 @@
 
     function getResolutionByRatioString(ratio) {
         const map = {
-            '1:1': '1024x1024',
-            '4:3': '1024x1024', 
-            '3:4': '1024x1024', 
-            '16:9': '1792x1024', 
-            '9:16': '1024x1792'  
+            '1:1': '1024x1024', '4:3': '1024x1024', '3:4': '1024x1024', 
+            '16:9': '1792x1024', '9:16': '1024x1792'  
         };
         return map[ratio] || '1024x1024';
     }
@@ -1056,6 +1142,11 @@
 
     // --- 反推提示词逻辑 ---
     async function interrogateImage() {
+        if (abortControllers['interrogate']) {
+            abortControllers['interrogate'].abort();
+            return;
+        }
+
         let apiUrl = document.getElementById('cfg-tag-url').value.trim() || localStorage.getItem('ai_tag_url');
         const apiKey = document.getElementById('cfg-tag-key').value.trim() || localStorage.getItem('ai_tag_key');
         const apiModel = document.getElementById('cfg-tag-model').value || localStorage.getItem('ai_tag_model');
@@ -1072,8 +1163,12 @@
         const btnText = document.getElementById('btn-text-interrogate');
         const resultBox = document.getElementById('interrogate-result');
 
-        btn.disabled = true; loader.style.display = 'block'; btnText.innerText = ' 正在反推中...';
+        btn.classList.add('btn-cancel');
+        loader.style.display = 'block'; 
+        btnText.innerText = ' 取消反推';
         resultBox.value = '正在分析图片，请稍候...';
+
+        abortControllers['interrogate'] = new AbortController();
 
         try {
             if (apiUrl.endsWith('/')) apiUrl = apiUrl.slice(0, -1);
@@ -1095,7 +1190,8 @@
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify(requestBody),
+                signal: abortControllers['interrogate'].signal
             });
 
             if (!response.ok) {
@@ -1111,17 +1207,23 @@
             }
 
         } catch (error) {
-            console.error("Interrogate Error:", error);
-            resultBox.value = `反推失败: ${error.message}`;
+            if (error.name === 'AbortError') {
+                resultBox.value = '已取消反推。';
+            } else {
+                console.error("Interrogate Error:", error);
+                resultBox.value = `反推失败: ${error.message}`;
+            }
         } finally {
-            btn.disabled = false; loader.style.display = 'none';
+            abortControllers['interrogate'] = null;
+            btn.classList.remove('btn-cancel');
+            loader.style.display = 'none';
             btnText.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> 重新反推';
         }
     }
 
     function copyInterrogate() {
         const text = document.getElementById('interrogate-result').value;
-        if (!text || text.startsWith('正在分析') || text.startsWith('反推失败')) return alert('没有可复制的提示词');
+        if (!text || text.startsWith('正在分析') || text.startsWith('反推失败') || text.startsWith('已取消')) return alert('没有可复制的提示词');
         navigator.clipboard.writeText(text).then(() => {
             alert('复制成功！');
         }).catch(err => {
@@ -1131,6 +1233,11 @@
 
     // --- 核心：生成图片 (文生图/图生图/标签风格) ---
     async function generateImage(type) {
+        if (abortControllers[type]) {
+            abortControllers[type].abort();
+            return;
+        }
+
         let apiUrl = localStorage.getItem('ai_api_url');
         const apiKey = localStorage.getItem('ai_api_key');
         const apiModel = localStorage.getItem('ai_api_model');
@@ -1149,16 +1256,12 @@
 
         let finalPrompt = promptInput;
 
-        // 标签风格特殊处理
         if (type === 'tag' && currentTag) {
-            // 1. 证件照颜色替换
             if (currentTag.name === '证件照' && finalPrompt.includes('[COLOR]')) {
                 const colors = ['红色', '白色', '蓝色'];
                 const pickedColor = colors[Math.floor(Math.random() * colors.length)];
                 finalPrompt = finalPrompt.replace('[COLOR]', pickedColor);
             }
-            
-            // 2. 强制加入底层约束指令，最大程度逼迫 AI 遵循原图
             let constraintPrompt = "(杰作), 严格保持参考图中的人物、主体、性别和核心特征完全不变, 完美贴合原图, ";
             finalPrompt = constraintPrompt + finalPrompt;
         }
@@ -1179,10 +1282,15 @@
         const placeholder = document.getElementById(`placeholder-${type}`);
         const hint = document.getElementById(`hint-${type}`);
 
-        btn.disabled = true; loader.style.display = 'block'; btnText.innerText = ' 正在生成中...';
+        btn.classList.add('btn-cancel');
+        loader.style.display = 'block'; 
+        btnText.innerText = ' 取消生成';
+        
         resultImg.style.display = 'none'; hint.style.display = 'none';
         placeholder.style.display = 'block';
         placeholder.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><p>AI 正在作画，请稍候...</p>';
+
+        abortControllers[type] = new AbortController();
 
         try {
             if (apiUrl.endsWith('/')) apiUrl = apiUrl.slice(0, -1);
@@ -1202,7 +1310,8 @@
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify(requestBody),
+                signal: abortControllers[type].signal
             });
 
             if (!response.ok) {
@@ -1237,9 +1346,15 @@
             });
 
         } catch (error) {
-            handleApiError(error, placeholder);
+            if (error.name === 'AbortError') {
+                placeholder.innerHTML = '<i class="fa-solid fa-ban"></i><p>已取消生成</p>';
+            } else {
+                handleApiError(error, placeholder);
+            }
         } finally {
-            btn.disabled = false; loader.style.display = 'none';
+            abortControllers[type] = null;
+            btn.classList.remove('btn-cancel');
+            loader.style.display = 'none';
             btnText.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> 重新生成';
         }
     }
@@ -1421,23 +1536,39 @@
         renderGallery();
     }
 
+    function switchGalleryTab(tab, element) {
+        document.querySelectorAll('#gallery-sidebar .sidebar-item').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+        currentGalleryTab = tab;
+        
+        if (isManageMode) toggleManageMode();
+        renderGallery();
+    }
+
     function renderGallery() {
         const grid = document.getElementById('gallery-grid');
         const countSpan = document.getElementById('history-count');
         
         grid.innerHTML = '';
-        countSpan.innerText = historyData.length;
+        
+        let displayData = historyData;
+        if (currentGalleryTab === 't2i') {
+            displayData = historyData.filter(item => item.type === 't2i');
+        } else if (currentGalleryTab === 'tag') {
+            displayData = historyData.filter(item => item.type === 'tag' || item.type === 'i2i');
+        }
 
-        if (historyData.length === 0) {
+        countSpan.innerText = displayData.length;
+
+        if (displayData.length === 0) {
             grid.innerHTML = `<div class="empty-gallery"><i class="fa-regular fa-folder-open"></i><p>相册空空如也</p></div>`;
-            if (isManageMode) toggleManageMode();
             document.getElementById('btn-manage').style.display = 'none';
             return;
         } else {
             document.getElementById('btn-manage').style.display = 'block';
         }
 
-        historyData.forEach(item => {
+        displayData.forEach(item => {
             const div = document.createElement('div');
             div.className = 'gallery-item';
             div.setAttribute('data-id', item.id);
@@ -1475,15 +1606,23 @@
         const item = historyData.find(x => x.id === id);
         if (!item) return;
 
+        // 切换底部导航
+        const targetTabId = item.type === 't2i' ? 't2i' : 'tags';
         const navItems = document.querySelectorAll('.nav-item');
-        const targetNav = Array.from(navItems).find(nav => nav.getAttribute('onclick').includes(`'${item.type}'`));
-        if (targetNav) switchTab(item.type, targetNav);
+        const targetNav = Array.from(navItems).find(nav => nav.getAttribute('onclick').includes(`'${targetTabId}'`));
+        if (targetNav) switchTab(targetTabId, targetNav);
 
-        if (item.type === 'tag') {
-            const index = tagStyles.findIndex(s => s.name === item.styleName);
-            if (index !== -1) {
-                const sidebarItems = document.querySelectorAll('.sidebar-item');
-                if (sidebarItems[index + 1]) sidebarItems[index + 1].click();
+        // 切换侧边栏
+        if (item.type === 'tag' || item.type === 'i2i') {
+            if (item.type === 'i2i') {
+                const i2iItem = document.querySelector('#tags-sidebar .sidebar-item[data-id="i2i"]');
+                if (i2iItem) i2iItem.click();
+            } else if (item.type === 'tag') {
+                const index = tagStyles.findIndex(s => s.name === item.styleName);
+                if (index !== -1) {
+                    const tagItem = document.querySelector(`#tags-sidebar .sidebar-item[data-id="tag-${index}"]`);
+                    if (tagItem) tagItem.click();
+                }
             }
         }
 
@@ -1506,6 +1645,9 @@
             }
 
             document.getElementById('main-content-area').scrollTo({ top: 0, behavior: 'smooth' });
+            if (item.type === 'tag' || item.type === 'i2i') {
+                document.querySelector('#view-tags .tags-content').scrollTo({ top: 0, behavior: 'smooth' });
+            }
         }, 50);
     }
 
