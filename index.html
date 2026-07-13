@@ -320,8 +320,8 @@
     <div class="header">
         <h1 id="header-title">文生图</h1>
         <div class="header-actions">
-            <i class="fa-solid fa-file-export settings-btn" onclick="exportData()" title="导出所有数据"></i>
-            <i class="fa-solid fa-file-import settings-btn" onclick="document.getElementById('import-file').click()" title="导入数据"></i>
+            <i class="fa-solid fa-file-export settings-btn" onclick="exportData()" title="导出备份"></i>
+            <i class="fa-solid fa-file-import settings-btn" onclick="document.getElementById('import-file').click()" title="导入备份"></i>
             <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(event)">
             <i class="fa-solid fa-sliders settings-btn" onclick="toggleSettings(true)" title="设置"></i>
         </div>
@@ -737,20 +737,21 @@
         }
     };
 
-    // --- 导入/导出备份逻辑 (全量数据) ---
+    // --- 导入/导出备份逻辑 ---
     async function exportData() {
-        // 遍历并获取 localStorage 中的所有键值对
-        const localStorageData = {};
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            localStorageData[key] = localStorage.getItem(key);
-        }
-
         const data = {
-            localStorage: localStorageData,
+            localStorage: {
+                ai_api_url: localStorage.getItem('ai_api_url'),
+                ai_api_key: localStorage.getItem('ai_api_key'),
+                ai_api_jailbreak: localStorage.getItem('ai_api_jailbreak'),
+                ai_api_model: localStorage.getItem('ai_api_model'),
+                ai_tag_url: localStorage.getItem('ai_tag_url'),
+                ai_tag_key: localStorage.getItem('ai_tag_key'),
+                ai_tag_model: localStorage.getItem('ai_tag_model'),
+                ai_api_presets: localStorage.getItem('ai_api_presets')
+            },
             history: historyData
         };
-        
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -767,21 +768,17 @@
         reader.onload = async (e) => {
             try {
                 const data = JSON.parse(e.target.result);
-                
-                // 恢复所有的 localStorage 数据
                 if (data.localStorage) {
                     for (const key in data.localStorage) {
-                        if (data.localStorage.hasOwnProperty(key) && data.localStorage[key] !== null) {
+                        if (data.localStorage[key] !== null) {
                             localStorage.setItem(key, data.localStorage[key]);
                         }
                     }
                 }
-                
-                // 恢复所有的历史记录数据
                 if (data.history && Array.isArray(data.history)) {
                     const transaction = db.transaction([STORE_NAME], 'readwrite');
                     const store = transaction.objectStore(STORE_NAME);
-                    store.clear(); // 先清空现有历史记录
+                    store.clear();
                     
                     for (const item of data.history) {
                         await new Promise((resolve, reject) => {
@@ -791,7 +788,7 @@
                         });
                     }
                 }
-                alert('导入成功！页面将刷新以应用所有数据。');
+                alert('导入成功！页面将刷新以应用数据。');
                 location.reload();
             } catch (err) {
                 alert('导入失败：文件格式不正确。');
@@ -1234,6 +1231,23 @@
         });
     }
 
+    // --- 辅助函数：将 URL 转换为 Base64 ---
+    async function urlToBase64(url) {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        } catch (e) {
+            console.warn("无法将图片转换为 Base64，可能存在跨域限制:", e);
+            return url; // 如果转换失败，降级返回原 URL
+        }
+    }
+
     // --- 核心：生成图片 (文生图/图生图/标签风格) ---
     async function generateImage(type) {
         if (abortControllers[type]) {
@@ -1304,7 +1318,8 @@
                 model: apiModel || "dall-e-3",
                 prompt: finalPrompt, 
                 n: 1,
-                size: sizeStr
+                size: sizeStr,
+                response_format: "b64_json" // 核心修复：强制要求 API 返回 Base64 真实数据，而不是临时链接
             };
 
             if (negativePromptInput) requestBody.negative_prompt = negativePromptInput;
@@ -1324,9 +1339,15 @@
 
             const data = await response.json();
             let generatedImageUrl = "";
-            if (data.data && data.data[0].url) generatedImageUrl = data.data[0].url;
-            else if (data.data && data.data[0].b64_json) generatedImageUrl = "data:image/png;base64," + data.data[0].b64_json;
-            else throw new Error("API 返回成功，但未找到图片 URL 数据。");
+            
+            // 核心修复：优先读取 b64_json，如果 API 不听话还是返回了 url，则在后台自动下载并转换为 Base64
+            if (data.data && data.data[0].b64_json) {
+                generatedImageUrl = "data:image/png;base64," + data.data[0].b64_json;
+            } else if (data.data && data.data[0].url) {
+                generatedImageUrl = await urlToBase64(data.data[0].url);
+            } else {
+                throw new Error("API 返回成功，但未找到图片数据。");
+            }
 
             resultImg.src = generatedImageUrl;
             resultImg.onload = () => {
@@ -1426,7 +1447,8 @@
         if (!db) return;
         historyData.unshift(item);
         
-        if (historyData.length > 200) {
+        // 将历史记录上限放宽到 500 张
+        if (historyData.length > 500) {
             const removed = historyData.pop();
             await deleteFromDB(removed.id);
         }
