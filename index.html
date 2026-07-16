@@ -1319,7 +1319,8 @@
                 prompt: finalPrompt, 
                 n: 1,
                 size: sizeStr,
-                response_format: "b64_json" // 核心修复：强制要求 API 返回 Base64 真实数据，而不是临时链接
+                // 核心修复：强制要求 API 返回 Base64 真实数据，而不是临时链接
+                response_format: "b64_json" 
             };
 
             if (negativePromptInput) requestBody.negative_prompt = negativePromptInput;
@@ -1344,6 +1345,8 @@
             if (data.data && data.data[0].b64_json) {
                 generatedImageUrl = "data:image/png;base64," + data.data[0].b64_json;
             } else if (data.data && data.data[0].url) {
+                // 如果 API 仍然返回 URL，立即下载并转换为 Base64
+                placeholder.innerHTML = '<i class="fa-solid fa-download"></i><p>正在转存图片，请稍候...</p>';
                 generatedImageUrl = await urlToBase64(data.data[0].url);
             } else {
                 throw new Error("API 返回成功，但未找到图片数据。");
@@ -1356,6 +1359,7 @@
                 hint.style.display = 'block';
             };
 
+            // 存入历史记录的是永久有效的 Data URL
             await saveToHistory({
                 id: Date.now().toString(),
                 type: type,
